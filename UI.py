@@ -5,6 +5,7 @@ from tkinter import *
 from tkinter import filedialog, ttk, messagebox
 from PIL import Image, ImageTk
 
+# comment the os to run since this is how it runs on Travis computer, won't work for us if we don't comment it out
 os.environ['TCL_LIBRARY'] = r"C:\Users\twsho\AppData\Local\Programs\Python\Python313\tcl\tcl8.6"
 os.environ['TK_LIBRARY'] = r"C:\Users\twsho\AppData\Local\Programs\Python\Python313\tcl\tk8.6"
 
@@ -135,4 +136,5 @@ ttk.Button(root, text="Confirm", command=show_selected).pack(anchor=W)
 
 
 #this will always be last no matter what
+
 root.mainloop()
