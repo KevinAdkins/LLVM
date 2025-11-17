@@ -16,9 +16,6 @@ A comprehensive bash script for profiling C++ applications and generating flameg
 # Install Clang compiler
 sudo apt install clang
 
-# Install perf tool
-sudo apt install linux-tools-generic
-
 # Clone FlameGraph repository (if not already present)
 git clone https://github.com/brendangregg/FlameGraph
 ```
