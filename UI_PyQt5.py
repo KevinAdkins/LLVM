@@ -178,17 +178,35 @@ class CompilationWorker(QThread):
             cpp_basename = Path(self.cpp_file).stem
             output_executable = self.output_dir / f"{cpp_basename}_{self.opt_level}"
             ir_file = self.output_dir / f"{cpp_basename}_{self.opt_level}.ll"
-            
+
+            lang = (self.language or "").lower()
+            is_rust = (lang == "rust")
+
+            opt_map = {"O0": "0", "O1": "1", "O2": "2", "O3": "3"}
+            rust_opt = opt_map.get(self.opt_level, "0")
+
+            if is_rust:
+                compile_cmd = [
+                    "rustc",
+                    "-C", f"opt-level={rust_opt}",
+                    "-C", "debuginfo=2",
+                    "-C", "force-frame-pointers=yes",
+                    str(self.cpp_file),
+                    "-o", str(output_executable)
+                ]
+            else:
             # Compile command
-            compile_cmd = [
-                'clang++', 
-                f'-{self.opt_level}',
-                '-g',
-                '-fno-omit-frame-pointer',
-                str(self.cpp_file),
-                '-o', str(output_executable)
-            ]
+                compile_cmd = [
+                    'clang++', 
+                    f'-{self.opt_level}',
+                    '-g',
+                    '-fno-omit-frame-pointer',
+                    str(self.cpp_file),
+                    '-o', str(output_executable)
+                ]
             
+            self.progress.emit("Compiling source code...")
+
             result = subprocess.run(compile_cmd, capture_output=True, text=True)
             if result.returncode != 0:
                 self.finished.emit(False, "", "")
@@ -199,14 +217,25 @@ class CompilationWorker(QThread):
             
             # Generate LLVM IR
             self.progress.emit("Generating LLVM IR...")
-            ir_cmd = [
-                'clang++',
-                f'-{self.opt_level}',
-                '-S',
-                '-emit-llvm',
-                str(self.cpp_file),
-                '-o', str(ir_file)
-            ]
+            if is_rust:
+                ir_cmd = [
+                    "rustc",
+                    "--emit=llvm-ir",
+                    "-C", f"opt-level={rust_opt}",
+                    "-C", "debuginfo=2",
+                    "-C", "force-frame-pointers=yes",
+                    str(self.cpp_file),
+                    "-o", str(ir_file),
+                ]
+            else:
+                ir_cmd = [
+                    "clang++",
+                    f"-{self.opt_level}",
+                    "-S",
+                    "-emit-llvm",
+                    str(self.cpp_file),
+                    "-o", str(ir_file),
+                ]
             
             subprocess.run(ir_cmd, capture_output=True, text=True)
             self.progress.emit("✓ LLVM IR generated")
@@ -1321,6 +1350,14 @@ Bottleneck Analysis:
         cpp_files = list(flamegraph_dir.glob("*.cpp")) + list(flamegraph_dir.glob("*.cc"))
         cfg_dirs = [d for d in flamegraph_dir.glob("*_cfg") if d.is_dir()]
         
+        source_files = (
+            list(flamegraph_dir.glob("*.cpp")) +
+            list(flamegraph_dir.glob("*.cc")) +
+            list(flamegraph_dir.glob("*.cxx")) +
+            list(flamegraph_dir.glob("*.rs"))
+        )
+        cfg_dirs = [d for d in flamegraph_dir.glob("*_cfg") if d.is_dir()]
+
         # Load IR
         ir_content = self.find_function_in_ir(function_name, ir_files)
         if ir_content:
